@@ -11,7 +11,11 @@ if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
 from math_question_ocr.minimal_pipeline import MinimalQuestionPipeline
-from math_question_ocr.ocr_stub import PlaceholderFigureDetector, SidecarJsonOCREngine
+from math_question_ocr.ocr_stub import (
+    PaddleOCREngine,
+    PlaceholderFigureDetector,
+    SidecarJsonOCREngine,
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -20,13 +24,25 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--ocr-json", default="", help="OCR sidecar JSON 路径")
     parser.add_argument("--figure-json", default="", help="图形 sidecar JSON 路径")
     parser.add_argument("--preprocess-out", default="", help="预处理输出目录")
+    parser.add_argument(
+        "--ocr-backend",
+        choices=["sidecar", "paddle"],
+        default="sidecar",
+        help="OCR 后端，默认 sidecar",
+    )
     return parser
+
+
+def build_ocr_engine(args: argparse.Namespace):
+    if args.ocr_backend == "paddle":
+        return PaddleOCREngine()
+    return SidecarJsonOCREngine(ocr_json_path=args.ocr_json or None)
 
 
 def main() -> None:
     args = build_parser().parse_args()
     pipeline = MinimalQuestionPipeline(
-        ocr_engine=SidecarJsonOCREngine(ocr_json_path=args.ocr_json or None),
+        ocr_engine=build_ocr_engine(args),
         figure_detector=PlaceholderFigureDetector(figure_json_path=args.figure_json or None),
     )
     artifacts = pipeline.run(
